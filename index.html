@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Inventory Management</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 2rem;
+      max-width: 900px;
+    }
+    h1, h2 {
+      margin-bottom: 0.5rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.3rem;
+    }
+    select, input[type="number"] {
+      width: 100%;
+      padding: 0.5rem;
+    }
+    button {
+      padding: 0.6rem 1.2rem;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.6rem;
+      text-align: left;
+    }
+    th {
+      background: #f2f2f2;
+    }
+  </style>
+</head>
+<body>
+  <h1>Record a Sale</h1>
+  <form id="sale-form">
+    <div class="form-group">
+      <label for="item">Item Name</label>
+      <select id="item" required></select>
+    </div>
+    <div class="form-group">
+      <label for="quantity">Quantity</label>
+      <input type="number" id="quantity" min="1" required />
+    </div>
+    <button type="submit">Submit Sale</button>
+  </form>
+
+  <h2>Inventory</h2>
+  <div class="form-group">
+    <label for="category-filter">Filter by Category</label>
+    <select id="category-filter">
+      <option value="">All</option>
+    </select>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>SKU</th>
+        <th>Category</th>
+        <th>Price</th>
+        <th>Stock</th>
+      </tr>
+    </thead>
+    <tbody id="inventory-body">
+      <!-- Items will populate here -->
+    </tbody>
+  </table>
+
+  <script>
+    let inventoryData = [];
+
+    async function fetchInventory() {
+      const res = await fetch('/api/inventory');
+      const data = await res.json();
+      inventoryData = data;
+      populateForm(data);
+      populateTable(data);
+      populateCategories(data);
+    }
+
+    function populateForm(items) {
+      const itemSelect = document.getElementById('item');
+      itemSelect.innerHTML = '';
+      items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.SKU;
+        option.textContent = item.Name;
+        itemSelect.appendChild(option);
+      });
+    }
+
+    function populateTable(items) {
+      const tbody = document.getElementById('inventory-body');
+      tbody.innerHTML = '';
+      items.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.Name}</td>
+          <td>${item.SKU}</td>
+          <td>${item.Category.join(', ')}</td>
+          <td>$${item.Price.toFixed(2)}</td>
+          <td>${item.Number}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function populateCategories(items) {
+      const filter = document.getElementById('category-filter');
+      const categories = new Set();
+      items.forEach(item => {
+        item.Category.forEach(cat => categories.add(cat));
+      });
+      [...categories].forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        filter.appendChild(option);
+      });
+    }
+
+    document.getElementById('sale-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const sku = document.getElementById('item').value;
+      const quantity = parseInt(document.getElementById('quantity').value);
+      const res = await fetch('/api/sale', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sku, quantity })
+      });
+      if (res.ok) {
+        alert('Sale recorded');
+        fetchInventory();
+        document.getElementById('sale-form').reset();
+      } else {
+        alert('Error recording sale');
+      }
+    });
+
+    document.getElementById('category-filter').addEventListener('change', () => {
+      const selected = document.getElementById('category-filter').value;
+      if (!selected) {
+        populateTable(inventoryData);
+      } else {
+        const filtered = inventoryData.filter(item =>
+          item.Category.includes(selected)
+        );
+        populateTable(filtered);
+      }
+    });
+
+    fetchInventory();
+  </script>
+</body>
+</html>
